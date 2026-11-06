@@ -1,48 +1,58 @@
+"""Notifications for task events. The e-mail transport is injected, so business code never
+creates SMTP connections and tests/dev can run without a mail server."""
+import logging
 import smtplib
-from datetime import datetime
+from email.message import EmailMessage
+
+logger = logging.getLogger(__name__)
+
+
+class LogEmailSender:
+    """Default transport when SMTP is not configured: records the e-mail in the log."""
+
+    def send(self, to, subject, body):
+        logger.info("E-mail (not sent, SMTP not configured) to=%s subject=%r", to, subject)
+        return True
+
+
+class SmtpEmailSender:
+    def __init__(self, host, port, username, password, sender, use_tls=True, timeout=10):
+        self.host = host
+        self.port = port
+        self.username = username
+        self.password = password
+        self.sender = sender
+        self.use_tls = use_tls
+        self.timeout = timeout
+
+    def send(self, to, subject, body):
+        message = EmailMessage()
+        message["From"] = self.sender
+        message["To"] = to
+        message["Subject"] = subject
+        message.set_content(body)
+        try:
+            with smtplib.SMTP(self.host, self.port, timeout=self.timeout) as server:
+                if self.use_tls:
+                    server.starttls()
+                if self.username:
+                    server.login(self.username, self.password)
+                server.send_message(message)
+        except (smtplib.SMTPException, OSError):
+            logger.exception("Failed to send e-mail to %s", to)
+            return False
+        logger.info("E-mail sent to %s", to)
+        return True
+
 
 class NotificationService:
-    def __init__(self):
-        self.notifications = []
-        self.email_host = 'smtp.gmail.com'
-        self.email_port = 587
-        self.email_user = 'taskmanager@gmail.com'
-        self.email_password = 'senha123'
-
-    def send_email(self, to, subject, body):
-        try:
-
-            server = smtplib.SMTP(self.email_host, self.email_port)
-            server.starttls()
-            server.login(self.email_user, self.email_password)
-            message = f"Subject: {subject}\n\n{body}"
-            server.sendmail(self.email_user, to, message)
-            server.quit()
-            print(f"Email enviado para {to}")
-            return True
-        except Exception as e:
-            print(f"Erro ao enviar email: {str(e)}")
-            return False
+    def __init__(self, email_sender):
+        self.email_sender = email_sender
 
     def notify_task_assigned(self, user, task):
         subject = f"Nova task atribuída: {task.title}"
-        body = f"Olá {user.name},\n\nA task '{task.title}' foi atribuída a você.\n\nPrioridade: {task.priority}\nStatus: {task.status}"
-        self.send_email(user.email, subject, body)
-        self.notifications.append({
-            'type': 'task_assigned',
-            'user_id': user.id,
-            'task_id': task.id,
-            'timestamp': datetime.utcnow()
-        })
-
-    def notify_task_overdue(self, user, task):
-        subject = f"Task atrasada: {task.title}"
-        body = f"Olá {user.name},\n\nA task '{task.title}' está atrasada!\n\nData limite: {task.due_date}"
-        self.send_email(user.email, subject, body)
-
-    def get_notifications(self, user_id):
-        result = []
-        for n in self.notifications:
-            if n['user_id'] == user_id:
-                result.append(n)
-        return result
+        body = (
+            f"Olá {user.name},\n\nA task '{task.title}' foi atribuída a você.\n\n"
+            f"Prioridade: {task.priority}\nStatus: {task.status}"
+        )
+        return self.email_sender.send(user.email, subject, body)
