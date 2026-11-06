@@ -60,7 +60,8 @@ Dica: um script curto (bash com `curl -s -o /dev/null -w '%{http_code}'`, ou Pyt
    - Diferença prevista em "Intentional Contract Changes" → ✓ (anotar)
    - Qualquer outra diferença → ✗: corrija e repita.
 4. Verifique as correções de segurança: o payload de injeção agora falha (401/400), campos sensíveis não aparecem, endpoints protegidos retornam 401/403 sem credencial e funcionam com ela.
-5. Verifique que nenhum `DeprecationWarning` do catálogo continua sendo emitido (`python -W default`, `node --trace-deprecation`).
+5. Verifique os **efeitos de negócio** dos fluxos que alteram estado, consultando o dado depois da operação (não basta o status HTTP): ex.: estoque cai ao criar pedido e volta ao cancelar; remover um registro não deixa dependentes órfãos; pagamento recusado não cria matrícula.
+6. Verifique que nenhum `DeprecationWarning` do catálogo continua sendo emitido (`python -W default`, `node --trace-deprecation`).
 
 ## 5. Verificação estática final
 

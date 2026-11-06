@@ -137,6 +137,11 @@ Confirme que não há verificação de identidade/permissão antes da operação
 - Efeitos colaterais no handler: `print("ENVIANDO EMAIL")`, envio SMTP, atualização de estoque.
 - Função de "model" que decide regra de negócio (faixas de desconto, aprovação de pagamento) misturada com SQL.
 - Regra existente no model (ex.: `is_overdue()`) reimplementada dentro das rotas.
+- **Ação anunciada mas não executada:** mensagens de log/`print`, comentários, `TODO` ou textos de resposta que descrevem um efeito de negócio que o código **não realiza** (ex.: `print("Pedido cancelado. Devolver estoque.")` sem nenhuma atualização de estoque; `"Usuário deletado, mas as matrículas ficaram sujas"`). Para cada mensagem desse tipo, procure o código que faria o efeito; se não existir, registre o finding citando a linha da mensagem e o fluxo afetado — é regra de negócio incompleta, e a Fase 3 deve implementá-la no service.
+```
+(?i)(print|console\.log|logger\.\w+|log)\(.*(devolver|estornar|reembolsar|enviar|notificar|restore|refund|rollback|cleanup|limpar)
+(?i)#\s*(TODO|FIXME|XXX)|//\s*(TODO|FIXME|XXX)
+```
 
 ### AP-08 — Estado global mutável / conexão singleton implícita
 **O que é:** variáveis de módulo mutáveis compartilhadas entre requisições (cache, contadores, conexão) acessadas via `global` ou exports mutáveis.
